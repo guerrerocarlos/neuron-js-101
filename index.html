@@ -13,6 +13,11 @@
       font: 12px sans-serif;
     }
 
+    table,
+    td {
+      border: 1px solid black;
+    }
+
     .mouse_area {
       opacity: 0;
     }
@@ -70,26 +75,26 @@
 
 <body>
   <div id="graph" class="graph"></div>
-  <span>Neuron's internal formula (initially F: 1 * C + 0):</span>
+  <span>Neuron's internal formula (initially <b>F: 1 * C + 0</b>):</span>
   <div class="formulacontainer">
     F = <span id="a" style="color: blue;">A</span> * C + <span id="b" style="color: green;">B</span>
   </div>
 
   <div class="slidecontainer">
     <div style="display:inline;">Iterations</div>
-    <input type="range" min="1" max="300" value="150" class="slider" id="iterations">
+    <input type="range" min="1" max="300" value="80" class="slider" id="iterations">
     <div style="display: inline;" id="i">0</div> /
-    <div style="display: inline;" id="iterationsNumber">150</div>
+    <div style="display: inline;" id="iterationsNumber">80</div>
   </div>
 
   <div class="slidecontainer">
     <div style="display:inline;">Divide each's training step error by</div>
-    <input type="range" min="1" max="100" value="50" class="slider" id="divisor">
-    <div style="display: inline;" id="divisorNumber">50</div>
+    <input type="range" min="1" max="100" value="30" class="slider" id="divisor">
+    <div style="display: inline;" id="divisorNumber">30</div>
   </div>
 
   <div class="inputscontainer">
-    <p>Training values are generated from known formula (F = 1.80 * C + 32.00)</p>
+    <p>Training values are generated from known formula (<b>F = 1.8 * C + 32</b>)</p>
     <span style="display:inline;">with C varying from</span>
     <input size="4" value="0" class="slider" id="from">
     <span style="display:inline;">to</span>
@@ -136,8 +141,8 @@
       var ths = document.getElementsByTagName('td')
       // console.log('ths', ths)
       values.forEach((value, i) => {
-        ths[i*4 + 2].innerText = (a * value.input + b).toFixed(2)
-        ths[i*4 + 3].innerText = (value.expectedOutput - (a * value.input + b)).toFixed(2)
+        ths[i * 4 + 2].innerText = (a * value.input + b).toFixed(2)
+        ths[i * 4 + 3].innerText = (value.expectedOutput - (a * value.input + b)).toFixed(2)
       })
     }
 
@@ -255,7 +260,7 @@
     })
 
     var values = []
-    function generateValues(){
+    function generateValues() {
       values = []
       var from = parseInt(document.getElementById('from').value)
       var to = parseInt(document.getElementById('to').value)
