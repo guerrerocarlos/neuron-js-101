@@ -3,9 +3,11 @@
 
 <head>
   <title>ML101 CtoF Neural</title>
-  <script type="text/javascript" src="https://mbostock.github.com/d3/d3.min.js"></script>
+  <script type="text/javascript" src="http://d3js.org/d3.v5.js"></script>
+  <script type="text/javascript" src="neuron.js"></script>
   <script type="text/javascript" src="index.js"></script>
   <script src="d3.slider.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@600&display=swap" rel="stylesheet">
   <style type="text/css">
     body {
       font: 12px sans-serif;
@@ -50,28 +52,102 @@
     .grid .tick {
       stroke: #CCC;
     }
+
+    .formulacontainer {
+      font-family: 'Inconsolata', cursive;
+      font-size: 2em;
+    }
+
+    .graph {
+      float: left;
+    }
+
+    .inputscontainer {
+      margin-top: 40px;
+    }
   </style>
 </head>
 
 <body>
-  <div class="slidecontainer">
-    <div>Iterations</div><div id="iterationsNumber">300</div>
-    <input style="width: 500px;" type="range" min="1" max="10000" value="300" class="slider" id="iterations">
+  <div id="graph" class="graph"></div>
+  <span>Neuron's internal formula (initially F: 1 * C + 0):</span>
+  <div class="formulacontainer">
+    F = <span id="a" style="color: blue;">A</span> * C + <span id="b" style="color: green;">B</span>
   </div>
+
+  <div class="slidecontainer">
+    <div style="display:inline;">Iterations</div>
+    <input type="range" min="1" max="300" value="150" class="slider" id="iterations">
+    <div style="display: inline;" id="i">0</div> /
+    <div style="display: inline;" id="iterationsNumber">150</div>
+  </div>
+
+  <div class="slidecontainer">
+    <div style="display:inline;">Divide each's training step error by</div>
+    <input type="range" min="1" max="100" value="50" class="slider" id="divisor">
+    <div style="display: inline;" id="divisorNumber">50</div>
+  </div>
+
+  <div class="inputscontainer">
+    <p>Training values are generated from known formula (F = 1.80 * C + 32.00)</p>
+    <span style="display:inline;">with C varying from</span>
+    <input size="4" value="0" class="slider" id="from">
+    <span style="display:inline;">to</span>
+    <input size="4" value="20" class="slider" id="to">
+    <span style="display:inline;">with steps of</span>
+    <input size="4" value="5" class="slider" id="steps">:
+  </div>
+
+  <table style="margin-top: 20px;"></table>
+
   <script type="text/javascript">
 
-    document.getElementById("iterations").addEventListener("mousemove", (evt) => {
-      console.log(evt)
-      document.getElementById("iterationsNumber").innerText = evt.target.value
-    })
+    function generateTableHead(table, data) {
+      let thead = table.createTHead();
+      let row = thead.insertRow();
 
-    var w = 800;
+      for (let key of data) {
+        let th = document.createElement("th");
+        let text = document.createTextNode(key);
+        th.appendChild(text);
+        row.appendChild(th);
+      }
+    }
+
+    function generateTable(table, data) {
+      for (let element of data) {
+        let row = table.insertRow();
+        for (key in element) {
+          let cell = row.insertCell();
+          let text = document.createTextNode((element[key]).toFixed(2));
+          cell.appendChild(text);
+        }
+      }
+    }
+
+    var A = document.getElementById("a")
+    var B = document.getElementById("b")
+    var I = document.getElementById("i")
+
+    setAB = function (a, b, i) {
+      I.innerText = i
+      A.innerText = a.toFixed(2)
+      B.innerText = b.toFixed(2)
+      var ths = document.getElementsByTagName('td')
+      // console.log('ths', ths)
+      values.forEach((value, i) => {
+        ths[i*4 + 2].innerText = (a * value.input + b).toFixed(2)
+        ths[i*4 + 3].innerText = (value.expectedOutput - (a * value.input + b)).toFixed(2)
+      })
+    }
+
+    var w = 500;
     var h = 500;
-    var x = d3.scale.linear().domain([0, 100]).range([0, w]);
-    var y = d3.scale.linear().domain([0, 80]).range([h, 0]);
+    var x = d3.scaleLinear().domain([0, 500 / 5]).range([0, w]);
+    var y = d3.scaleLinear().domain([0, 500 / 5]).range([h, 0]);
 
-    var pad = 50;
-    var svg = d3.select("body")
+    var pad = 80;
+    var svg = d3.select("#graph")
       .append("svg:svg")
       .attr("height", h + pad)
       .attr("width", w + pad)
@@ -82,25 +158,7 @@
     var legend = d3.select("body").append("div")
       .classed("legend", true)
 
-    var iterations = getIterations()
-    iterations.all = iterations.all.filter((values, i) => i % 2 === 0)
-
-    var color = d3.scale.linear()
-      .domain([0, iterations.all.length])
-      .range(["red", "green"]);
-
     make_rules();
-
-
-    // console.log('>> iterations.all', iterations.all)
-    iterations.all.forEach((value, i) => {
-      // console.log(value)
-      chart_line(value, i);
-    })
-
-    chart_line(iterations.objective, '#0000ff')
-
-    // make_mouseover_guides();
 
     function basic_function(a, b) {
       return (function (x) {
@@ -108,28 +166,140 @@
       })
     }
 
-    function chart_line(value, i) {
-      var g = vis.append("svg:g")
-        .classed("series", true)
+    var line = d3.line()
+      .x(function (d) { return d.x; })
+      .y(function (d) { return d.y; });
 
-      g.append("svg:path")
-        .attr("d", function (d) {
-          return d3.svg.line()(
-            x.ticks(2).map(function (xi) {
-              return [x(xi), y(basic_function(value.a, value.b)(xi))]
-            })
-          )
-        })
-        .attr('stroke', function (d) {
-          if (typeof i === 'string') {
-            return i
-          }
-          return color(i);
-        })
-        .attr('stroke-width', function (d) { return 0.8; })
+    var series = vis.append("g")
+      .classed("series", true)
+
+    function updateInputs(values) {
+      console.log('updateInputs', values)
+      let table = document.querySelector("table");
+      table.innerHTML = ""
+
+      let data = Object.keys(values[0]);
+      generateTable(table, values); // generate the table first
+      generateTableHead(table, ['Input (C)', 'Known output (F)', 'Neuron result', 'Neuron error']);
+
+      series.selectAll('circle')
+        .data(values, d => d.input)
+        .join(
+          enter => {
+            console.log('enter!', enter)
+            return enter.append('circle')
+              .attr("cx", d => x(d.input))
+              .attr("cy", d => y(d.expectedOutput))
+              .attr("stroke", "black")
+              .attr("fill", "red")
+              .attr("r", 2)
+          },
+          update => update,
+          exit => exit.remove()
+        )
     }
 
+    function updateSeries(data) {
+      series.selectAll('path')
+        .data(data)
+        .join(
+          enter => {
+            console.log('enter!', enter)
+            return enter.append('path')
+              .attr('d', function (d) {
+                return d3.line()(
+                  x.ticks(2).map(function (xi) {
+                    return [x(xi), y(basic_function(d.a, d.b)(xi))]
+                  })
+                )
+              })
+              .attr('stroke', function (d, i) {
+                return 'rgba(0.95,0.95,0.95,0.01)'//color(i);
+              })
+              .attr('stroke-width', function (d) { return 0.8; })
+          },
+          update => update,
+          exit => exit.remove()
+        )
+        .transition()
+        .delay((d, i) => i * 15)
+        .style("stroke", function (d, i) {
+          setTimeout(() => {
+            setAB(d.a, d.b, i)
+          }, i * 15)
+          return color(i) //'#00f';
+        })
+    }
 
+    var color
+
+    // document.getElementById("iterations").addEventListener("mousemove", (evt) => {
+    document.getElementById("iterations").addEventListener("mousemove", (evt) => {
+      document.getElementById("iterationsNumber").innerText = evt.target.value
+    })
+
+    document.getElementById("iterations").addEventListener("change", (evt) => {
+      console.log(evt)
+      document.getElementById("iterationsNumber").innerText = evt.target.value
+      updateChart()
+    })
+
+    document.getElementById("divisor").addEventListener("mousemove", (evt) => {
+      document.getElementById("divisorNumber").innerText = evt.target.value
+    })
+
+    document.getElementById("divisor").addEventListener("change", (evt) => {
+      console.log(evt)
+      document.getElementById("divisorNumber").innerText = evt.target.value
+      updateChart()
+    })
+
+    var values = []
+    function generateValues(){
+      values = []
+      var from = parseInt(document.getElementById('from').value)
+      var to = parseInt(document.getElementById('to').value)
+      var steps = parseInt(document.getElementById('steps').value)
+      console.log('values', from, to, steps)
+      for (var i = from; i <= to; i += steps) {
+        values.push({
+          input: i,
+          expectedOutput: c2f(i),
+          result: 0,
+          error: 0,
+        })
+      }
+      updateInputs(values)
+      updateChart()
+    }
+    generateValues()
+
+    document.getElementById('from').addEventListener('change', generateValues)
+    document.getElementById('to').addEventListener('change', generateValues)
+    document.getElementById('steps').addEventListener('change', generateValues)
+
+    function updateChart() {
+      updateSeries([])
+
+      var results = trainNeuron({
+        iterations: parseInt(document.getElementById("iterationsNumber").innerText),
+        divisor: parseInt(document.getElementById("divisorNumber").innerText),
+        values
+      })
+      // results.all = results.all.filter((values, i) => i % 2 === 0)
+
+      color = d3.scaleLinear()
+        .domain([0, results.all.length])
+        .range(["red", "green"]);
+
+      updateSeries(results.all)
+    }
+
+    // function updateValuesChart() {
+    // }
+
+    // updateChart()
+    // updateValuesChart()
 
     function make_rules() {
       var rules = vis.append("svg:g").classed("rules", true)
@@ -148,31 +318,26 @@
           .ticks(10)
       }
 
-      rules.append("svg:g").classed("grid x_grid", true)
-        .attr("transform", "translate(0," + h + ")")
-        .call(make_x_axis()
-          .tickSize(-h, 0, 0)
-          .tickFormat("")
-        )
+      // rules.append("svg:g").classed("grid x_grid", true)
+      //   .attr("transform", "translate(0," + h + ")")
+      //   .call(d3.axisBottom(x))
 
-      rules.append("svg:g").classed("grid y_grid", true)
-        .call(make_y_axis()
-          .tickSize(-w, 0, 0)
-          .tickFormat("")
-        )
+      // rules.append("svg:g").classed("grid y_grid", true)
+      //   .call(make_y_axis()
+      //     .tickSize(-w, 0, 0)
+      //     .tickFormat("")
+      //   )
 
       rules.append("svg:g").classed("labels x_labels", true)
         .attr("transform", "translate(0," + h + ")")
-        .call(make_x_axis()
-          .tickSize(5)
-          // .tickFormat(d3.time.format("%Y/%m"))
-        )
+        .call(d3.axisBottom(x))
 
       rules.append("svg:g").classed("labels y_labels", true)
-        .call(make_y_axis()
-          .tickSubdivide(1)
-          .tickSize(10, 5, 0)
-        )
+        .call(d3.axisRight(y).tickSize(w))
+        .call(g => g.selectAll(".tick")
+          .attr("stroke-opacity", 0.5)
+          .attr("stroke-dasharray", "2,2"))
+
     }
 
 
