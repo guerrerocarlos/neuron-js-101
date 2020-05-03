@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>ML101 CtoF Neural</title>
+  <script type="text/javascript" src="https://mbostock.github.com/d3/d3.min.js"></script>
+  <script type="text/javascript" src="index.js"></script>
+  <script src="d3.slider.js"></script>
+  <style type="text/css">
+    body {
+      font: 12px sans-serif;
+    }
+
+    .mouse_area {
+      opacity: 0;
+    }
+
+    .guides {
+      stroke-width: 1px;
+    }
+
+    .guides line {
+      stroke: #BBF;
+      shape-rendering: crispEdges;
+    }
+
+    .guides circle {
+      fill: #BBF;
+      stroke: #348;
+      opacity: 0.2;
+    }
+
+
+    .rules line,
+    .rules path {
+      shape-rendering: crispEdges;
+      stroke: #000;
+    }
+
+    .rules .tick {}
+
+    .rules .minor {
+      stroke: #BBB;
+    }
+
+    .rules .domain {
+      fill: none;
+    }
+
+    .grid .tick {
+      stroke: #CCC;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="slidecontainer">
+    <div>Iterations</div><div id="iterationsNumber">300</div>
+    <input style="width: 500px;" type="range" min="1" max="10000" value="300" class="slider" id="iterations">
+  </div>
+  <script type="text/javascript">
+
+    document.getElementById("iterations").addEventListener("mousemove", (evt) => {
+      console.log(evt)
+      document.getElementById("iterationsNumber").innerText = evt.target.value
+    })
+
+    var w = 800;
+    var h = 500;
+    var x = d3.scale.linear().domain([0, 100]).range([0, w]);
+    var y = d3.scale.linear().domain([0, 80]).range([h, 0]);
+
+    var pad = 50;
+    var svg = d3.select("body")
+      .append("svg:svg")
+      .attr("height", h + pad)
+      .attr("width", w + pad)
+
+    var vis = svg.append("svg:g")
+      .attr("transform", "translate(40,20)")
+
+    var legend = d3.select("body").append("div")
+      .classed("legend", true)
+
+    var iterations = getIterations()
+    iterations.all = iterations.all.filter((values, i) => i % 2 === 0)
+
+    var color = d3.scale.linear()
+      .domain([0, iterations.all.length])
+      .range(["red", "green"]);
+
+    make_rules();
+
+
+    // console.log('>> iterations.all', iterations.all)
+    iterations.all.forEach((value, i) => {
+      // console.log(value)
+      chart_line(value, i);
+    })
+
+    chart_line(iterations.objective, '#0000ff')
+
+    // make_mouseover_guides();
+
+    function basic_function(a, b) {
+      return (function (x) {
+        return a * x + b
+      })
+    }
+
+    function chart_line(value, i) {
+      var g = vis.append("svg:g")
+        .classed("series", true)
+
+      g.append("svg:path")
+        .attr("d", function (d) {
+          return d3.svg.line()(
+            x.ticks(2).map(function (xi) {
+              return [x(xi), y(basic_function(value.a, value.b)(xi))]
+            })
+          )
+        })
+        .attr('stroke', function (d) {
+          if (typeof i === 'string') {
+            return i
+          }
+          return color(i);
+        })
+        .attr('stroke-width', function (d) { return 0.8; })
+    }
+
+
+
+    function make_rules() {
+      var rules = vis.append("svg:g").classed("rules", true)
+
+      function make_x_axis() {
+        return d3.svg.axis()
+          .scale(x)
+          .orient("bottom")
+          .ticks(10)
+      }
+
+      function make_y_axis() {
+        return d3.svg.axis()
+          .scale(y)
+          .orient("left")
+          .ticks(10)
+      }
+
+      rules.append("svg:g").classed("grid x_grid", true)
+        .attr("transform", "translate(0," + h + ")")
+        .call(make_x_axis()
+          .tickSize(-h, 0, 0)
+          .tickFormat("")
+        )
+
+      rules.append("svg:g").classed("grid y_grid", true)
+        .call(make_y_axis()
+          .tickSize(-w, 0, 0)
+          .tickFormat("")
+        )
+
+      rules.append("svg:g").classed("labels x_labels", true)
+        .attr("transform", "translate(0," + h + ")")
+        .call(make_x_axis()
+          .tickSize(5)
+          // .tickFormat(d3.time.format("%Y/%m"))
+        )
+
+      rules.append("svg:g").classed("labels y_labels", true)
+        .call(make_y_axis()
+          .tickSubdivide(1)
+          .tickSize(10, 5, 0)
+        )
+    }
+
+
+  </script>
+</body>
+
+</html>
